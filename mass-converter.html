@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mass Converter – Smart File Studio</title>
+
+<!-- ===== EXTERNAL LIBRARIES ===== -->
+<!-- pdf-lib: create/modify PDFs in browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<!-- JSZip: create ZIP archives in browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- FileSaver: trigger download of blobs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style>
+/* ============================================================
+   CSS CUSTOM PROPERTIES – Theme tokens
+   ============================================================ */
+:root {
+  --bg:          #0a0e1a;
+  --surface:     rgba(255,255,255,0.04);
+  --surface-mid: rgba(255,255,255,0.08);
+  --surface-hi:  rgba(255,255,255,0.13);
+  --border:      rgba(255,255,255,0.10);
+  --border-hi:   rgba(255,255,255,0.22);
+  --accent:      #6c63ff;
+  --accent2:     #00d4aa;
+  --accent3:     #ff6b6b;
+  --accent4:     #ffd166;
+  --text:        #e8eaf6;
+  --text-muted:  #7c84a8;
+  --radius:      16px;
+  --radius-sm:   10px;
+  --blur:        blur(18px);
+  --shadow:      0 8px 40px rgba(0,0,0,0.5);
+  --font:        'Sora', sans-serif;
+  --mono:        'JetBrains Mono', monospace;
+  --transition:  0.22s cubic-bezier(.4,0,.2,1);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated mesh background */
+body::before {
+  content:'';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 900px 600px at 20% 20%, rgba(108,99,255,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 700px 500px at 80% 80%, rgba(0,212,170,.12) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 400px at 60% 10%, rgba(255,107,107,.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+.app-wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-icon {
+  width: 46px; height: 46px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 24px rgba(108,99,255,.4);
+}
+.logo-text h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #fff 0%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+.logo-text span {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.header-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.badge {
+  padding: 5px 14px;
+  border-radius: 30px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  cursor: default;
+}
+.badge-purple { color: var(--accent); border-color: rgba(108,99,255,.35); background: rgba(108,99,255,.1); }
+.badge-teal   { color: var(--accent2); border-color: rgba(0,212,170,.35); background: rgba(0,212,170,.1); }
+.badge-red    { color: var(--accent3); border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.1); }
+
+/* ============================================================
+   SECTION SELECTOR – Personal / Educational / Photo / Other
+   ============================================================ */
+.section-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.sec-btn {
+  padding: 10px 20px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  backdrop-filter: var(--blur);
+}
+.sec-btn:hover  { border-color: var(--border-hi); color: var(--text); background: var(--surface-mid); }
+.sec-btn.active { background: linear-gradient(135deg, rgba(108,99,255,.25), rgba(0,212,170,.15)); border-color: var(--accent); color: #fff; }
+.sec-btn .dot   { width: 8px; height: 8px; border-radius: 50%; }
+.dot-p { background: var(--accent); }
+.dot-e { background: var(--accent2); }
+.dot-ph { background: var(--accent4); }
+.dot-o { background: var(--accent3); }
+
+/* ============================================================
+   MAIN GRID
+   ============================================================ */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+@media(max-width:1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   GLASS CARD
+   ============================================================ */
+.glass {
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-header h2 { font-size: 1rem; font-weight: 700; }
+.card-header .icon-wrap {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.pur { background: rgba(108,99,255,.2); color: var(--accent); }
+.tea { background: rgba(0,212,170,.2); color: var(--accent2); }
+.yel { background: rgba(255,209,102,.2); color: var(--accent4); }
+.red { background: rgba(255,107,107,.2); color: var(--accent3); }
+
+/* ============================================================
+   DROP ZONE
+   ============================================================ */
+.drop-zone {
+  margin: 20px 24px;
+  border: 2px dashed var(--border-hi);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  background: rgba(255,255,255,.02);
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(108,99,255,.07);
+  box-shadow: 0 0 30px rgba(108,99,255,.15) inset;
+}
+.drop-zone .dz-icon { font-size: 3rem; margin-bottom: 12px; opacity: .6; }
+.drop-zone h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+.drop-zone p  { font-size: .8rem; color: var(--text-muted); }
+.drop-zone input[type=file] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+
+/* ============================================================
+   FILE CARDS GRID
+   ============================================================ */
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 0 24px 24px;
+}
+.file-card {
+  background: var(--surface-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: var(--transition);
+  position: relative;
+  cursor: grab;
+}
+.file-card:hover { border-color: var(--border-hi); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+.file-card.dragging-card { opacity: .4; }
+.file-card.drag-over-card { border-color: var(--accent); box-shadow: 0 0 20px rgba(108,99,255,.3); }
+
+.fc-thumb {
+  height: 110px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  background: rgba(0,0,0,.2);
+  position: relative;
+}
+.fc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.fc-thumb .file-type-icon { font-size: 2.8rem; opacity: .6; }
+.fc-thumb .remove-btn {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px;
+  background: rgba(255,107,107,.85);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  transition: var(--transition);
+  opacity: 0;
+}
+.file-card:hover .remove-btn { opacity: 1; }
+
+.fc-body { padding: 10px 10px 12px; }
+.fc-name {
+  font-size: .72rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+.fc-name-input {
+  width: 100%;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--text);
+  margin-bottom: 6px;
+  transition: var(--transition);
+}
+.fc-name-input:focus { outline: none; border-color: var(--accent); }
+
+.fc-controls { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.fc-select {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-family: var(--font);
+  font-size: .68rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.fc-select:focus { outline: none; border-color: var(--accent); }
+.fc-size {
+  font-size: .65rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* Status indicator on card */
+.fc-status {
+  position: absolute; bottom: 6px; right: 6px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+.fc-status.idle    { background: var(--text-muted); }
+.fc-status.working { background: var(--accent4); animation: pulse 1s infinite; }
+.fc-status.done    { background: var(--accent2); }
+.fc-status.error   { background: var(--accent3); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ============================================================
+   CONTROLS BAR
+   ============================================================ */
+.controls-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 18px 24px;
+  border-top: 1px solid var(--border);
+  align-items: center;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-family: var(--font);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(108,99,255,.4);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(108,99,255,.55); }
+
+.btn-teal {
+  background: linear-gradient(135deg, var(--accent2), #0ea5e9);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(0,212,170,.3);
+}
+.btn-teal:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,212,170,.45); }
+
+.btn-outline {
+  background: var(--surface-mid);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  backdrop-filter: var(--blur);
+}
+.btn-outline:hover { background: var(--surface-hi); border-color: var(--accent); color: var(--accent); }
+
+.btn-danger {
+  background: rgba(255,107,107,.15);
+  border: 1px solid rgba(255,107,107,.3);
+  color: var(--accent3);
+}
+.btn-danger:hover { background: rgba(255,107,107,.25); }
+
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+/* ============================================================
+   SIZE LIMIT MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(6px);
+  z-index: 999;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: var(--transition);
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: rgba(15,17,35,.95);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 380px;
+  max-width: calc(100vw - 40px);
+  box-shadow: 0 20px 80px rgba(0,0,0,.8);
+  transform: scale(.95);
+  transition: var(--transition);
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; }
+.modal label { font-size: .8rem; color: var(--text-muted); display: block; margin-bottom: 6px; }
+.modal input, .modal select {
+  width: 100%;
+  background: var(--surface-mid);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font);
+  font-size: .85rem;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.modal input:focus, .modal select:focus { outline: none; border-color: var(--accent); }
+.modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress-wrap {
+  padding: 0 24px 20px;
+  display: none;
+}
+.progress-wrap.visible { display: block; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: .76rem; color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.progress-track {
+  height: 6px;
+  background: rgba(255,255,255,.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 99px;
+  width: 0%;
+  transition: width .3s ease;
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toast-container {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 9999;
+}
+.toast {
+  background: rgba(20,22,40,.95);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: .82rem;
+  display: flex; align-items: center; gap: 10px;
+  min-width: 220px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  animation: slideIn .3s ease;
+}
+.toast.success .toast-dot { background: var(--accent2); }
+.toast.error   .toast-dot { background: var(--accent3); }
+.toast.info    .toast-dot { background: var(--accent); }
+.toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes slideIn { from{transform:translateX(50px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* ============================================================
+   RIGHT PANEL – CHATBOT
+   ============================================================ */
+.chatbot-panel {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  max-height: 780px;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.1) transparent;
+}
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+/* Chat bubbles */
+.msg {
+  display: flex;
+  gap: 10px;
+  animation: msgIn .3s ease;
+}
+@keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.msg.bot  { justify-content: flex-start; }
+.msg.user { justify-content: flex-end; }
+.msg-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 0 12px rgba(108,99,255,.35);
+  margin-top: 2px;
+}
+.msg-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: .8rem;
+  line-height: 1.55;
+}
+.msg.bot  .msg-bubble {
+  background: var(--surface-mid);
+  border: 1px solid var(--border);
+  border-top-left-radius: 4px;
+}
+.msg.user .msg-bubble {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  border-bottom-right-radius: 4px;
+  color: #fff;
+}
+
+/* Quick reply chips */
+.quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+.qr-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--surface-mid);
+  border: 1px solid var(--border-hi);
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--accent2);
+  font-family: var(--font);
+}
+.qr-chip:hover { background: rgba(0,212,170,.12); border-color: var(--accent2); }
+
+/* Chat input */
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.chat-input {
+  flex: 1;
+  background: var(--surface-mid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: var(--font);
+  font-size: .82rem;
+  color: var(--text);
+  resize: none;
+  height: 42px;
+  transition: var(--transition);
+}
+.chat-input:focus { outline: none; border-color: var(--accent); background: var(--surface-hi); }
+.chat-send {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+.chat-send:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(108,99,255,.4); }
+
+/* Typing indicator */
+.typing-dots {
+  display: flex; gap: 4px; align-items: center;
+  padding: 10px 14px;
+}
+.typing-dots span {
+  width: 6px; height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: dot 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%,80%,100%{transform:scale(1);opacity:.4} 40%{transform:scale(1.4);opacity:1} }
+
+/* ============================================================
+   EXTRA DOCUMENT ADDER
+   ============================================================ */
+.extra-doc-section {
+  padding: 0 24px 20px;
+}
+.extra-doc-section h4 {
+  font-size: .82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.extra-doc-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.extra-doc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255,209,102,.1);
+  border: 1px solid rgba(255,209,102,.25);
+  font-size: .72rem;
+  color: var(--accent4);
+}
+.extra-doc-tag button {
+  background: none; border: none; cursor: pointer; color: var(--accent3);
+  font-size: 12px; padding: 0; line-height: 1;
+}
+.add-extra-row {
+  display: flex;
+  gap: 8px;
+}
+.add-extra-row input {
+  flex: 1;
+  background: var(--surface-mid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: .78rem;
+  color: var(--text);
+}
+.add-extra-row input:focus { outline: none; border-color: var(--accent4); }
+.add-extra-row button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(255,209,102,.15);
+  border: 1px solid rgba(255,209,102,.3);
+  color: var(--accent4);
+  font-family: var(--font);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.add-extra-row button:hover { background: rgba(255,209,102,.25); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:768px) {
+  header { padding: 16px 0 14px; }
+  .logo-text h1 { font-size: 1.2rem; }
+  .files-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .chatbot-panel { height: 520px; position: static; }
+}
+@media(max-width:480px) {
+  .controls-bar { flex-direction: column; }
+  .btn { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div id="toast-container"></div>
+
+<!-- ===== MODAL – Size/Format Settings ===== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>⚙️ Adjust Size & Format</h3>
+    <label>Max Size Limit</label>
+    <input type="number" id="modalSizeVal" value="500" min="10" />
+    <select id="modalSizeUnit">
+      <option value="KB">KB</option>
+      <option value="MB">MB</option>
+    </select>
+    <label>Default Output Format</label>
+    <select id="modalFormat">
+      <option value="JPG">JPG</option>
+      <option value="PNG">PNG</option>
+      <option value="PDF">PDF</option>
+    </select>
+    <label>JPEG Quality (1–100)</label>
+    <input type="range" id="modalQuality" min="1" max="100" value="80"
+           oninput="document.getElementById('qualityLabel').textContent=this.value" />
+    <small id="qualityLabel" style="color:var(--text-muted);font-size:.75rem">80</small>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="applySettings()">Apply</button>
+      <button class="btn btn-outline"  onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP WRAPPER ===== -->
+<div class="app-wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📁</div>
+      <div class="logo-text">
+        <h1>Mass Converter</h1>
+        <span>Smart File Studio · NIMCET &amp; CUET Ready</span>
+      </div>
+    </div>
+    <div class="header-badges">
+      <div class="badge badge-purple">Client-Side</div>
+      <div class="badge badge-teal">100% Private</div>
+      <div class="badge badge-red">No Upload Needed</div>
+    </div>
+  </header>
+
+  <!-- SECTION SELECTOR -->
+  <div class="section-bar">
+    <button class="sec-btn active" data-sec="all"    onclick="selectSection(this,'all')"><span class="dot dot-p"></span>All Files</button>
+    <button class="sec-btn"        data-sec="personal" onclick="selectSection(this,'personal')"><span class="dot dot-p"></span>Personal Identity</button>
+    <button class="sec-btn"        data-sec="edu"    onclick="selectSection(this,'edu')"><span class="dot dot-e"></span>Educational</button>
+    <button class="sec-btn"        data-sec="photo"  onclick="selectSection(this,'photo')"><span class="dot dot-ph"></span>Photo / Signature</button>
+    <button class="sec-btn"        data-sec="other"  onclick="selectSection(this,'other')"><span class="dot dot-o"></span>Other</button>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT – UPLOAD + FILES -->
+    <div>
+      <!-- DROP ZONE CARD -->
+      <div class="glass" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="icon-wrap pur"><i data-lucide="upload-cloud" style="width:17px;height:17px"></i></div>
+          <h2>Upload Files</h2>
+          <span style="margin-left:auto;font-size:.75rem;color:var(--text-muted)">Drag, drop, or click</span>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="dropZone">
+          <div class="dz-icon">📂</div>
+          <h3>Drop your files here</h3>
+          <p>PNG, JPG, JPEG, PDF, DOCX, etc. · Multiple files OK</p>
+          <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx" />
+        </div>
+
+        <!-- Progress bar (hidden until conversion starts) -->
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-label">
+            <span id="progressLabel">Converting…</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <!-- Controls bar -->
+        <div class="controls-bar">
+          <button class="btn btn-primary" onclick="convertAll()" id="convertBtn" disabled>
+            <i data-lucide="zap" style="width:15px;height:15px"></i> Convert All
+          </button>
+          <button class="btn btn-teal" onclick="downloadZip()" id="downloadBtn" disabled>
+            <i data-lucide="archive" style="width:15px;height:15px"></i> Download ZIP
+          </button>
+          <button class="btn btn-outline" onclick="openModal()">
+            <i data-lucide="sliders-horizontal" style="width:15px;height:15px"></i> Adjust Size/Format
+          </button>
+          <button class="btn btn-danger" onclick="clearAll()">
+            <i data-lucide="trash-2" style="width:15px;height:15px"></i> Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- FILES GRID CARD -->
+      <div class="glass" id="filesCard" style="display:none">
+        <div class="card-header">
+          <div class="icon-wrap tea"><i data-lucide="layers" style="width:17px;height:17px"></i></div>
+          <h2>Uploaded Files</h2>
+          <span style="margin-left:auto;font-size:.75rem;color:var(--text-muted)" id="fileCount">0 files</span>
+        </div>
+        <div class="files-grid" id="filesGrid"></div>
+      </div>
+
+      <!-- EXTRA DOCUMENT ADDER -->
+      <div class="glass" style="margin-top:20px">
+        <div class="card-header">
+          <div class="icon-wrap yel"><i data-lucide="plus-circle" style="width:17px;height:17px"></i></div>
+          <h2>Add Extra Documents</h2>
+        </div>
+        <div class="extra-doc-section">
+          <h4><i data-lucide="tag" style="width:13px;height:13px"></i> Custom document labels for your ZIP folder structure</h4>
+          <div class="extra-doc-list" id="extraDocList"></div>
+          <div class="add-extra-row">
+            <input type="text" id="extraDocInput" placeholder="e.g. Disability Certificate, NOC Letter…" />
+            <button onclick="addExtraDoc()">+ Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT – MASS AI CHATBOT -->
+    <div>
+      <div class="glass chatbot-panel">
+        <div class="card-header">
+          <div class="icon-wrap pur" style="font-size:18px">🤖</div>
+          <div>
+            <h2 style="font-size:.95rem">Mass AI</h2>
+            <div style="font-size:.68rem;color:var(--accent2)">● Online · Your smart guide</div>
+          </div>
+        </div>
+
+        <!-- Messages area -->
+        <div class="chat-messages" id="chatMessages"></div>
+
+        <!-- Quick reply chips -->
+        <div class="quick-replies" id="quickReplies"></div>
+
+        <!-- Chat input -->
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chatInput" placeholder="Ask Mass AI anything…" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+          <button class="chat-send" onclick="sendChat()">
+            <i data-lucide="send" style="width:16px;height:16px"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-grid -->
+</div><!-- /app-wrapper -->
+
+<!-- ========================================================
+     JAVASCRIPT
+     ======================================================== -->
+<script>
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let files = [];          // Array of file objects: { id, file, name, outputFormat, blob, status, section }
+let convertedBlobs = []; // After conversion, filled with { name, blob }
+let dragSrcId = null;    // For drag-and-drop reorder
+
+// Settings (adjustable via modal)
+let settings = {
+  maxSizeKB: 500,        // default 500 KB
+  format: 'JPG',
+  quality: 0.80          // JPEG quality 0–1
+};
+
+// Current active section filter
+let currentSection = 'all';
+
+// Extra document labels
+let extraDocs = [];
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();          // Activate Lucide icons
+  initDropZone();
+  initChatbot();
+});
+
+// ============================================================
+// DROP ZONE SETUP
+// ============================================================
+function initDropZone() {
+  const dz = document.getElementById('dropZone');
+  const fi = document.getElementById('fileInput');
+
+  // File input change → add files
+  fi.addEventListener('change', e => addFiles(Array.from(e.target.files)));
+
+  // Drag events
+  ['dragenter','dragover'].forEach(evt =>
+    dz.addEventListener(evt, e => { e.preventDefault(); dz.classList.add('dragover'); })
+  );
+  ['dragleave','drop'].forEach(evt =>
+    dz.addEventListener(evt, e => { e.preventDefault(); dz.classList.remove('dragover'); })
+  );
+  dz.addEventListener('drop', e => {
+    addFiles(Array.from(e.dataTransfer.files));
+  });
+}
+
+// ============================================================
+// ADD FILES
+// ============================================================
+function addFiles(newFiles) {
+  newFiles.forEach(f => {
+    // Determine section based on file name or let user pick
+    files.push({
+      id:           Date.now() + Math.random(),
+      file:         f,
+      name:         sanitizeName(f.name),
+      outputFormat: settings.format,
+      blob:         null,
+      status:       'idle',    // idle | working | done | error
+      section:      currentSection === 'all' ? 'personal' : currentSection
+    });
+  });
+  renderFiles();
+  updateButtons();
+}
+
+function sanitizeName(raw) {
+  // Strip extension, keep base name
+  return raw.replace(/\.[^/.]+$/, '');
+}
+
+// ============================================================
+// RENDER FILE CARDS
+// ============================================================
+function renderFiles() {
+  const grid  = document.getElementById('filesGrid');
+  const card  = document.getElementById('filesCard');
+  const count = document.getElementById('fileCount');
+
+  // Show/hide the card
+  card.style.display = files.length ? 'block' : 'none';
+  count.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
+
+  grid.innerHTML = '';
+  files.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'file-card';
+    div.id = `fc-${f.id}`;
+    div.draggable = true;
+
+    // Drag-and-drop reorder events
+    div.addEventListener('dragstart', () => { dragSrcId = f.id; div.classList.add('dragging-card'); });
+    div.addEventListener('dragend',   () => div.classList.remove('dragging-card'));
+    div.addEventListener('dragover',  e => { e.preventDefault(); div.classList.add('drag-over-card'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over-card'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      div.classList.remove('drag-over-card');
+      reorderFiles(dragSrcId, f.id);
+    });
+
+    // Build thumb HTML
+    const thumbHTML = buildThumb(f);
+
+    div.innerHTML = `
+      <div class="fc-thumb">
+        ${thumbHTML}
+        <button class="remove-btn" onclick="removeFile('${f.id}')">✕</button>
+      </div>
+      <div class="fc-body">
+        <div class="fc-name" title="${f.file.name}">${f.file.name}</div>
+        <input class="fc-name-input" type="text" value="${f.name}"
+               placeholder="Output filename"
+               onchange="updateFileName('${f.id}', this.value)"
+               title="Rename output file" />
+        <div class="fc-controls">
+          <select class="fc-select" onchange="updateFormat('${f.id}', this.value)">
+            <option value="JPG"  ${f.outputFormat==='JPG' ?'selected':''}>JPG</option>
+            <option value="PNG"  ${f.outputFormat==='PNG' ?'selected':''}>PNG</option>
+            <option value="PDF"  ${f.outputFormat==='PDF' ?'selected':''}>PDF</option>
+          </select>
+          <span class="fc-size">${formatBytes(f.file.size)}</span>
+        </div>
+      </div>
+      <div class="fc-status ${f.status}" id="fcs-${f.id}"></div>
+    `;
+    grid.appendChild(div);
+
+    // Async thumbnail for images
+    if (f.file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const thumb = div.querySelector('.fc-thumb');
+        thumb.innerHTML = `
+          <img src="${e.target.result}" alt="${f.name}" />
+          <button class="remove-btn" onclick="removeFile('${f.id}')">✕</button>
+        `;
+      };
+      reader.readAsDataURL(f.file);
+    }
+  });
+
+  lucide.createIcons();
+}
+
+function buildThumb(f) {
+  // Returns placeholder icon (real image loaded async)
+  const ext = f.file.name.split('.').pop().toLowerCase();
+  const icons = { pdf:'📄', doc:'📝', docx:'📝', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', default:'📎' };
+  const icon = icons[ext] || icons.default;
+  return `<div class="file-type-icon">${icon}</div>
+          <button class="remove-btn" onclick="removeFile('${f.id}')">✕</button>`;
+}
+
+// ============================================================
+// FILE MANAGEMENT HELPERS
+// ============================================================
+function removeFile(id) {
+  files = files.filter(f => f.id != id);
+  renderFiles();
+  updateButtons();
+  showToast('File removed', 'info');
+}
+
+function clearAll() {
+  files = []; convertedBlobs = [];
+  renderFiles();
+  updateButtons();
+  showProgress(false);
+  showToast('All files cleared', 'info');
+}
+
+function reorderFiles(srcId, targetId) {
+  const si = files.findIndex(f => f.id == srcId);
+  const ti = files.findIndex(f => f.id == targetId);
+  if (si < 0 || ti < 0 || si === ti) return;
+  const [item] = files.splice(si, 1);
+  files.splice(ti, 0, item);
+  renderFiles();
+}
+
+function updateFileName(id, val) {
+  const f = files.find(f => f.id == id);
+  if (f) f.name = val || sanitizeName(f.file.name);
+}
+
+function updateFormat(id, fmt) {
+  const f = files.find(f => f.id == id);
+  if (f) f.outputFormat = fmt;
+}
+
+function updateButtons() {
+  const has = files.length > 0;
+  document.getElementById('convertBtn').disabled  = !has;
+  document.getElementById('downloadBtn').disabled = convertedBlobs.length === 0;
+}
+
+// ============================================================
+// SECTION SELECTOR
+// ============================================================
+function selectSection(btn, sec) {
+  document.querySelectorAll('.sec-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSection = sec;
+  // Notify chatbot
+  const msgs = {
+    personal: 'You selected **Personal Identity** section. Upload Aadhaar, Passport, Voter ID, Domicile Certificates here. Recommended size: 100–500 KB. 📇',
+    edu:      'You selected **Educational** section. Upload 10th, 12th, Graduation marksheets and Caste Certificates. Recommended size: 200 KB–1 MB. 🎓',
+    photo:    'You selected **Photo/Signature** section. Upload passport-size photo (50–200 KB) and scanned signature (50–200 KB). 📸',
+    other:    'You selected **Other Documents** section. Add Income Certificate, Disability Certificate, or any custom document. 📋',
+    all:      'Showing all files. You can upload any documents here! 📁'
+  };
+  if (msgs[sec]) addBotMessage(msgs[sec]);
+}
+
+// ============================================================
+// MODAL (Size/Format Settings)
+// ============================================================
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('modalSizeVal').value  = settings.maxSizeKB >= 1024 ? settings.maxSizeKB/1024 : settings.maxSizeKB;
+  document.getElementById('modalSizeUnit').value = settings.maxSizeKB >= 1024 ? 'MB' : 'KB';
+  document.getElementById('modalFormat').value   = settings.format;
+  document.getElementById('modalQuality').value  = Math.round(settings.quality * 100);
+  document.getElementById('qualityLabel').textContent = Math.round(settings.quality * 100);
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+function applySettings() {
+  const val  = parseFloat(document.getElementById('modalSizeVal').value) || 500;
+  const unit = document.getElementById('modalSizeUnit').value;
+  settings.maxSizeKB = unit === 'MB' ? val * 1024 : val;
+  settings.format    = document.getElementById('modalFormat').value;
+  settings.quality   = parseInt(document.getElementById('modalQuality').value) / 100;
+
+  // Apply format to all cards that haven't been individually overridden
+  files.forEach(f => f.outputFormat = settings.format);
+  renderFiles();
+  closeModal();
+  showToast(`Settings: max ${unit==='MB'?val+'MB':val+'KB'}, format ${settings.format}, quality ${Math.round(settings.quality*100)}%`, 'success');
+  addBotMessage(`Settings updated! Max size: **${unit==='MB'?val+'MB':val+'KB'}**, format: **${settings.format}**, quality: **${Math.round(settings.quality*100)}%**. Ready to convert! 🎉`);
+}
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ============================================================
+// CONVERSION ENGINE
+// ============================================================
+async function convertAll() {
+  if (!files.length) return;
+  convertedBlobs = [];
+  showProgress(true);
+  setProgress(0, 'Starting conversion…');
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    setStatus(f.id, 'working');
+    setProgress(Math.round((i / files.length) * 90), `Converting ${f.name}…`);
+
+    try {
+      const blob = await convertFile(f);
+      f.blob = blob;
+      const ext  = f.outputFormat.toLowerCase();
+      convertedBlobs.push({ name: `${f.name}.${ext}`, blob, section: f.section });
+      setStatus(f.id, 'done');
+    } catch(err) {
+      setStatus(f.id, 'error');
+      showToast(`Error converting ${f.name}: ${err.message}`, 'error');
+    }
+  }
+
+  setProgress(100, 'All done!');
+  setTimeout(() => showProgress(false), 2000);
+  updateButtons();
+  showToast(`✅ ${convertedBlobs.length}/${files.length} files converted!`, 'success');
+  addBotMessage(`Conversion complete! **${convertedBlobs.length}** file(s) ready. Click **Download ZIP** to get them all in one folder. 🎊`);
+}
+
+// ---- Core file converter ----
+async function convertFile(f) {
+  const fmt = f.outputFormat;
+
+  if (fmt === 'PDF') {
+    return await toPDF(f);
+  } else {
+    // JPG or PNG
+    return await toImage(f, fmt);
+  }
+}
+
+// Convert image (or PDF first page) to JPG/PNG with optional resize/compress
+async function toImage(f, fmt) {
+  return new Promise((resolve, reject) => {
+    const isImg = f.file.type.startsWith('image/');
+    if (!isImg) {
+      // For non-image files (PDFs, docs), create a text-based placeholder image
+      const canvas = document.createElement('canvas');
+      canvas.width  = 595; canvas.height = 842; // A4 @ 72dpi
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0,0,595,842);
+      ctx.fillStyle = '#6c63ff';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.file.name, 297, 400);
+      ctx.fillStyle = '#e8eaf6';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Converted via Mass Converter', 297, 440);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas failed')),
+        fmt==='PNG' ? 'image/png' : 'image/jpeg', settings.quality);
+      return;
+    }
+
+    const img = new Image();
+    const url = URL.createObjectURL(f.file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Determine target dimensions for size reduction
+      let { width, height } = img;
+      const maxSizeBytes = settings.maxSizeKB * 1024;
+      // Rough estimation: start at original size, scale down if needed
+      const scaleFactor = Math.min(1, Math.sqrt(maxSizeBytes / (f.file.size || 1)));
+      if (scaleFactor < 1) {
+        width  = Math.round(width  * scaleFactor);
+        height = Math.round(height * scaleFactor);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg';
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      }, mime, settings.quality);
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = url;
+  });
+}
+
+// Convert image to PDF using pdf-lib
+async function toPDF(f) {
+  const { PDFDocument, rgb } = PDFLib;
+  const pdfDoc = await PDFDocument.create();
+
+  const isImg = f.file.type.startsWith('image/');
+
+  if (isImg) {
+    const arrBuf = await f.file.arrayBuffer();
+    let img;
+    if (f.file.type === 'image/png') {
+      img = await pdfDoc.embedPng(arrBuf);
+    } else {
+      // jpg/jpeg
+      img = await pdfDoc.embedJpg(arrBuf);
+    }
+    const page = pdfDoc.addPage([img.width, img.height]);
+    page.drawImage(img, { x:0, y:0, width:img.width, height:img.height });
+  } else {
+    // Non-image: create a page with the filename as text
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    page.drawText(f.file.name, { x: 50, y: 750, size: 18, color: rgb(0.1,0.1,0.1) });
+    page.drawText('Converted by Mass Converter', { x: 50, y: 720, size: 12, color: rgb(0.5,0.5,0.5) });
+    page.drawText(`Original size: ${formatBytes(f.file.size)}`, { x: 50, y: 700, size: 12, color: rgb(0.5,0.5,0.5) });
+  }
+
+  const bytes = await pdfDoc.save();
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+// ============================================================
+// DOWNLOAD AS ZIP
+// ============================================================
+async function downloadZip() {
+  if (!convertedBlobs.length) {
+    showToast('Nothing to download. Convert files first!', 'error');
+    return;
+  }
+
+  showToast('Building ZIP…', 'info');
+  const zip = new JSZip();
+
+  // Group by section → folder structure
+  const sectionNames = {
+    personal: '01_Personal_Identity',
+    edu:      '02_Educational',
+    photo:    '03_Photo_Signature',
+    other:    '04_Other',
+  };
+
+  convertedBlobs.forEach(item => {
+    const folder = sectionNames[item.section] || '05_Misc';
+    zip.folder(folder).file(item.name, item.blob);
+  });
+
+  // Extra doc labels go into a text readme
+  if (extraDocs.length) {
+    const readme = `Extra Documents Checklist:\n${extraDocs.map((d,i)=>`${i+1}. ${d}`).join('\n')}`;
+    zip.file('Extra_Documents_README.txt', readme);
+  }
+
+  try {
+    const zipBlob = await zip.generateAsync({ type:'blob' }, meta => {
+      setProgress(Math.round(meta.percent), `Compressing ZIP: ${Math.round(meta.percent)}%`);
+    });
+    showProgress(true);
+    setProgress(100, 'ZIP ready!');
+    saveAs(zipBlob, 'MassConverter_Files.zip');
+    setTimeout(() => showProgress(false), 2000);
+    showToast('ZIP downloaded successfully! 🎉', 'success');
+    addBotMessage('Your ZIP has been downloaded! All files are organized into sections. Great job! 🎉');
+  } catch(err) {
+    showToast('ZIP error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// EXTRA DOCUMENTS
+// ============================================================
+function addExtraDoc() {
+  const inp = document.getElementById('extraDocInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  extraDocs.push(val);
+  inp.value = '';
+  renderExtraDocs();
+  addBotMessage(`Added **"${val}"** to your document list! You can upload this file and I'll include it in the ZIP. 📋`);
+}
+
+function removeExtraDoc(idx) {
+  extraDocs.splice(idx, 1);
+  renderExtraDocs();
+}
+
+function renderExtraDocs() {
+  const list = document.getElementById('extraDocList');
+  list.innerHTML = extraDocs.map((d, i) => `
+    <div class="extra-doc-tag">
+      📄 ${d}
+      <button onclick="removeExtraDoc(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+// Also allow Enter key in extra doc input
+document.getElementById('extraDocInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') addExtraDoc();
+});
+
+// ============================================================
+// PROGRESS BAR HELPERS
+// ============================================================
+function showProgress(show) {
+  const pw = document.getElementById('progressWrap');
+  pw.classList.toggle('visible', show);
+  if (!show) setProgress(0, '');
+}
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent   = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+function setStatus(id, status) {
+  const el = document.getElementById(`fcs-${id}`);
+  if (el) { el.className = `fc-status ${status}`; }
+  const f = files.find(f => f.id == id);
+  if (f) f.status = status;
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showToast(msg, type='info') {
+  const cont  = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<div class="toast-dot"></div><span>${msg}</span>`;
+  cont.appendChild(toast);
+  setTimeout(() => { toast.style.opacity='0'; toast.style.transform='translateX(50px)';
+    setTimeout(() => toast.remove(), 300); }, 3500);
+}
+
+// ============================================================
+// UTILITY
+// ============================================================
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1048576)    return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(2) + ' MB';
+}
+
+// ============================================================
+// MASS AI CHATBOT ENGINE
+// ============================================================
+
+// Knowledge base: section → document suggestions
+const docSuggestions = {
+  personal: [
+    { name:'Aadhaar Card',           size:'100–500 KB', fmt:'JPG/PDF' },
+    { name:'Voter ID / Passport',    size:'100–500 KB', fmt:'JPG/PDF' },
+    { name:'Domicile Certificate',   size:'100–500 KB', fmt:'PDF'     },
+    { name:'Nativity Certificate',   size:'100–500 KB', fmt:'PDF'     },
+  ],
+  edu: [
+    { name:'10th Marksheet',         size:'200 KB–1 MB', fmt:'PDF' },
+    { name:'12th Marksheet',         size:'200 KB–1 MB', fmt:'PDF' },
+    { name:'Graduation Certificate', size:'200 KB–1 MB', fmt:'PDF' },
+    { name:'Caste / Category Cert.', size:'100–500 KB',  fmt:'PDF' },
+  ],
+  photo: [
+    { name:'Passport Photo',         size:'50–200 KB',  fmt:'JPG' },
+    { name:'Scanned Signature',      size:'50–200 KB',  fmt:'JPG' },
+  ],
+  other: [
+    { name:'Income Certificate',     size:'100–500 KB', fmt:'PDF' },
+    { name:'Disability Certificate', size:'100–500 KB', fmt:'PDF' },
+  ]
+};
+
+// Quick reply buttons
+const defaultQRs = [
+  '📋 What docs do I need for NIMCET?',
+  '🎓 What docs for CUET?',
+  '📁 How to upload files?',
+  '⚙️ How to compress images?',
+  '📦 How to download ZIP?',
+  '➕ Add extra document'
+];
+
+// Bot responses lookup
+const botResponses = {
+  'nimcet': () => `For **NIMCET** you typically need:\n\n**Personal:**\n• Aadhaar/Voter ID/Passport → 100–500 KB\n• Domicile Certificate → 100–500 KB\n\n**Educational:**\n• 10th & 12th Marksheets → 200 KB–1 MB\n• Graduation Certificate → 200 KB–1 MB\n• Caste Certificate (if applicable) → 100–500 KB\n\n**Photo/Signature:**\n• Passport Photo → 50–200 KB (JPG)\n• Scanned Signature → 50–200 KB (JPG)\n\nUse the **Adjust Size/Format** button to set the correct limits! 📐`,
+
+  'cuet':   () => `For **CUET** you need:\n\n**Identity:**\n• Aadhaar / Passport → 100–500 KB\n• Address Proof → 100–500 KB\n\n**Academic:**\n• 12th Marksheet → 200 KB–1 MB\n• School/Board Certificate → 200 KB–1 MB\n\n**Other:**\n• Passport Photo → 50–100 KB (JPG)\n• Signature → 20–50 KB (JPG)\n• Category Certificate → 100–500 KB\n\nSelect a **section** above to filter your files! 🎯`,
+
+  'upload': () => `**How to Upload Files:**\n1. Drag & drop files into the blue drop zone\n2. Or click the zone to browse files\n3. You can upload multiple files at once! 📂\n\nAfter upload, each file card shows:\n• A preview thumbnail\n• A rename field\n• Format selector (JPG/PNG/PDF)`,
+
+  'compress': () => `**To compress your images:**\n1. Click **"Adjust Size/Format"** button\n2. Set max size (e.g. 200 KB for photos)\n3. Set JPEG quality (80% is usually best)\n4. Click **Apply**\n5. Then click **Convert All** ⚡\n\nMass Converter compresses everything in your browser — 100% private! 🔒`,
+
+  'zip': () => `**Downloading your ZIP:**\n1. First click **Convert All** to process files\n2. Then click **Download ZIP** 📦\n3. Your ZIP will have folder sections:\n   📁 01_Personal_Identity\n   📁 02_Educational\n   📁 03_Photo_Signature\n   📁 04_Other\n\nThe ZIP downloads instantly — no server involved! 🚀`,
+
+  'extra': () => `**Adding Extra Documents:**\n• Scroll to the **"Add Extra Documents"** section\n• Type a document name (e.g. "NOC Letter")\n• Press Enter or click **+ Add**\n• This label will appear in your ZIP as a reminder! 📋\n\nYou can add unlimited custom labels. 👍`,
+
+  'hello': () => `Hello! 👋 I'm **Mass AI**, your smart file conversion guide!\n\nI can help you:\n✅ Upload & organize documents\n✅ Compress & convert files\n✅ Prepare NIMCET/CUET documents\n✅ Download everything as ZIP\n\nWhat would you like to do?`,
+
+  'hi': () => `Hi there! 😊 Great to meet you! I'm Mass AI. Ready to help you organize and convert your files. What do you need?`,
+
+  'default': (q) => `I'm here to help! You asked about: **"${q}"**\n\nTry asking:\n• "What docs for NIMCET?"\n• "How to compress images?"\n• "How to download ZIP?"\n\nOr just start uploading files and I'll guide you! 📁`
+};
+
+function initChatbot() {
+  // Greeting
+  setTimeout(() => {
+    addBotMessage(`Hello! 👋 I'm **Mass AI** — your intelligent document assistant!\n\nI'll help you:\n✅ Upload & organize documents for **NIMCET** & **CUET**\n✅ Compress & convert files in your browser\n✅ Download everything as a tidy ZIP\n\nSelect a **section** above to get started, or ask me anything! 🚀`);
+    setQuickReplies(defaultQRs);
+  }, 600);
+}
+
+function setQuickReplies(chips) {
+  const qr = document.getElementById('quickReplies');
+  qr.innerHTML = chips.map(c =>
+    `<button class="qr-chip" onclick="handleQR('${c.replace(/'/g,"\\'")}')">${c}</button>`
+  ).join('');
+}
+
+function handleQR(text) {
+  addUserMessage(text);
+  processUserInput(text);
+}
+
+function sendChat() {
+  const inp = document.getElementById('chatInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  inp.value = '';
+  addUserMessage(val);
+  processUserInput(val);
+}
+
+function processUserInput(text) {
+  const lower = text.toLowerCase();
+  // Show typing indicator
+  showTyping();
+
+  setTimeout(() => {
+    hideTyping();
+    let resp;
+    if (lower.includes('nimcet'))          resp = botResponses.nimcet();
+    else if (lower.includes('cuet'))       resp = botResponses.cuet();
+    else if (lower.includes('upload') || lower.includes('how to upload')) resp = botResponses.upload();
+    else if (lower.includes('compress') || lower.includes('resize') || lower.includes('size')) resp = botResponses.compress();
+    else if (lower.includes('zip') || lower.includes('download')) resp = botResponses.zip();
+    else if (lower.includes('extra') || lower.includes('add doc') || lower.includes('other doc')) resp = botResponses.extra();
+    else if (lower.includes('personal'))   resp = formatDocList('personal');
+    else if (lower.includes('education') || lower.includes('educational') || lower.includes('academic')) resp = formatDocList('edu');
+    else if (lower.includes('photo') || lower.includes('signature')) resp = formatDocList('photo');
+    else if (lower.match(/^(hi|hello|hey|namaste|hii)/)) resp = botResponses.hello();
+    else resp = botResponses.default(text);
+
+    addBotMessage(resp);
+
+    // Context-aware quick replies
+    if (lower.includes('nimcet') || lower.includes('cuet')) {
+      setQuickReplies(['📁 How to upload files?', '⚙️ Compress images', '📦 Download ZIP', '➕ Add extra doc']);
+    } else {
+      setQuickReplies(defaultQRs.slice(0,4));
+    }
+  }, 900 + Math.random() * 400);
+}
+
+function formatDocList(section) {
+  const docs = docSuggestions[section] || [];
+  const header = { personal:'Personal Identity Documents', edu:'Educational Documents', photo:'Photo & Signature', other:'Other Documents' };
+  return `**${header[section]}** required:\n\n` +
+    docs.map(d => `• **${d.name}** → ${d.size} · Format: ${d.fmt}`).join('\n') +
+    `\n\nUpload these files, set the size limit via **Adjust Size/Format**, then hit **Convert All**! ✅`;
+}
+
+// ---- Chat DOM helpers ----
+let typingEl = null;
+
+function addBotMessage(text) {
+  const msgs = document.getElementById('chatMessages');
+  const div  = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-bubble">${markdownToHTML(text)}</div>
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('chatMessages');
+  const div  = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="msg-bubble">${escapeHTML(text)}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  typingEl   = document.createElement('div');
+  typingEl.className = 'msg bot';
+  typingEl.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-bubble" style="padding:8px 14px">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  msgs.appendChild(typingEl);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+}
+
+// Minimal markdown → HTML (bold, newlines, bullets)
+function markdownToHTML(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>')
+    .replace(/•\s/g,'• ');
+}
+function escapeHTML(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
+</body>
+</html>
